@@ -33,6 +33,8 @@ typedef struct _TriangleCoord {
 
 SDL_Renderer *Renderer = NULL;
 SDL_Window *Window = NULL;
+SDL_Surface *BackgroundSurface = NULL;
+SDL_Texture *BackgroundTexture = NULL;
 SDL_Event Event;
 Point Leg [9] = { 0 };
 
@@ -75,9 +77,9 @@ void DrawTriangle (const TriangleCoord *c, const Point *a) {
 bool LegThings (int, int, unsigned short);
 bool ReLeg (int x, int y, unsigned short leg) {
 	if (leg >= 4)
-		Leg [leg].x = x + 64;
+		Leg [leg].x = x + 50;
 	else
-		Leg [leg].x = x - 64;
+		Leg [leg].x = x - 50;
 	Leg [leg].y = y + (leg % 5) * 16;
 	return LegThings (x, y, leg);
 }
@@ -123,8 +125,7 @@ void DoThings (void) {
 	px -= (px - ((float) Event.motion.x)) / 10;
 	py -= (py - ((float) Event.motion.y)) / 10;
 	
-	SDL_SetRenderDrawColor (Renderer, 0, 0, 0, 0);
-	SDL_RenderClear (Renderer);
+	SDL_RenderCopy (Renderer, Background, NULL, NULL);
 	
 	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
 	for (unsigned short i = 0; i != 8; i ++)
