@@ -14,7 +14,12 @@
 #define ABS fabsl
 
 
+#define FRAME_TIME (1000 / 60)
+
+
 typedef long double Float;
+typedef unsigned long Time;
+
 typedef Float TAngle;
 typedef Float TSide;
 
@@ -135,6 +140,16 @@ void DoThings (void) {
 	SDL_RenderPresent (Renderer);
 }
 
+void WaitFrame (void) {
+	static Time last;
+	Time target = last + FRAME_TIME;
+	Time now = SDL_GetTicks ();
+	
+	if (target > now)
+		SDL_Delay (target - now);
+	last = target;
+}
+
 int main (void) {
 	SDL_Init (SDL_INIT_VIDEO);
 	SDL_CreateWindowAndRenderer (
@@ -148,13 +163,15 @@ int main (void) {
 	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
 	
 	while (1) {
-		SDL_WaitEvent (&Event);
-		switch (Event.type) {
-			case SDL_QUIT:
-				return 0;
-			case SDL_MOUSEMOTION:
-				DoThings ();
+		if (SDL_PollEvent (&Event)) {
+			switch (Event.type) {
+				case SDL_QUIT:
+					return 0;
+				case SDL_MOUSEMOTION:
+					DoThings ();
+			}
 		}
+		WaitFrame ();
 	}
 
 }
