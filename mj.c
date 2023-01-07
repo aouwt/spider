@@ -164,7 +164,7 @@ int main (void) {
 	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
 	
 	while (1) {
-		if (SDL_PollEvent (&Event)) {
+		while (SDL_PollEvent (&Event)) {
 			switch (Event.type) {
 				case SDL_QUIT:
 					return 0;
