@@ -16,6 +16,7 @@
 
 #define FRAME_TIME (1000 / 60)
 
+typedef uint_fast32_t Word;
 
 typedef float Float;
 typedef Word Time;
