@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-<<<<<<< HEAD
 #define SIN sinl
 #define COS cosl
 #define TAN tanl
@@ -21,20 +20,6 @@
 typedef long double Float;
 typedef unsigned long Time;
 
-=======
-#define SIN sin
-#define COS cos
-#define TAN tan
-#define ASIN asin
-#define ACOS acos
-#define ATAN atan
-#define POW pow
-#define SQRT sqrt
-#define ABS fabs
-
-
-typedef float Float;
->>>>>>> f090bab93099a87d9223ab2ca95e7148789e9068
 typedef Float TAngle;
 typedef Float TSide;
 
