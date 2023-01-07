@@ -125,7 +125,8 @@ void DoThings (void) {
 	px -= (px - ((float) Event.motion.x)) / 10;
 	py -= (py - ((float) Event.motion.y)) / 10;
 	
-	SDL_RenderCopy (Renderer, Background, NULL, NULL);
+	SDL_RenderClear (Renderer);
+	//SDL_RenderCopy (Renderer, Background, NULL, NULL);
 	
 	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
 	for (unsigned short i = 0; i != 8; i ++)
@@ -135,7 +136,7 @@ void DoThings (void) {
 }
 
 int main (void) {
-	SDL_Init (SDL_INIT_EVERYTHING);
+	SDL_Init (SDL_INIT_VIDEO);
 	SDL_CreateWindowAndRenderer (
 		640, 480,
 		0,
