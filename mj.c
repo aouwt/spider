@@ -3,18 +3,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define SIN sinl
-#define COS cosl
-#define TAN tanl
-#define ASIN asinl
-#define ACOS acosl
-#define ATAN atanl
-#define POW powl
-#define SQRT sqrtl
-#define ABS fabsl
+#define SIN sin
+#define COS cos
+#define TAN tan
+#define ASIN asin
+#define ACOS acos
+#define ATAN atan
+#define POW pow
+#define SQRT sqrt
+#define ABS fabs
 
 
-typedef long double Float;
+typedef float Float;
 typedef Float TAngle;
 typedef Float TSide;
 
@@ -125,6 +125,7 @@ void DoThings (void) {
 	px -= (px - ((float) Event.motion.x)) / 10;
 	py -= (py - ((float) Event.motion.y)) / 10;
 	
+	SDL_SetRenderDrawColor (Renderer, 0,0,0, 0);
 	SDL_RenderClear (Renderer);
 	//SDL_RenderCopy (Renderer, Background, NULL, NULL);
 	
