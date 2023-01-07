@@ -17,8 +17,8 @@
 #define FRAME_TIME (1000 / 60)
 
 
-typedef long double Float;
-typedef unsigned long Time;
+typedef float Float;
+typedef Word Time;
 
 typedef Float TAngle;
 typedef Float TSide;
@@ -41,6 +41,8 @@ SDL_Window *Window = NULL;
 SDL_Surface *BackgroundSurface = NULL;
 SDL_Texture *BackgroundTexture = NULL;
 SDL_Event Event;
+
+int MouseX, MouseY;
 Point Leg [9] = { 0 };
 
 /*void SolveTriangle_ABC (Triangle *t) {
@@ -127,8 +129,8 @@ void DoThings (void) {
 	static float px = 0;
 	static float py = 0;
 	
-	px -= (px - ((float) Event.motion.x)) / 10;
-	py -= (py - ((float) Event.motion.y)) / 10;
+	px -= (px - ((float) MouseX)) / 10;
+	py -= (py - ((float) MouseY)) / 10;
 	
 	SDL_SetRenderDrawColor (Renderer, 0,0,0, 0);
 	SDL_RenderClear (Renderer);
@@ -169,9 +171,11 @@ int main (void) {
 				case SDL_QUIT:
 					return 0;
 				case SDL_MOUSEMOTION:
-					DoThings ();
+					MouseX = Event.motion.x;
+					MouseY = Event.motion.y;
 			}
 		}
+		DoThings ();
 		WaitFrame ();
 	}
 
