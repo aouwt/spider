@@ -16,6 +16,24 @@
 
 #define FRAME_TIME (1000 / 60)
 
+
+#define THROWSDLERR	fprintf (stderr, "SDL error at %u: %s\n", (unsigned int) __LINE__, SDL_GetError ())
+
+#define SDLERRNZ(func)	{	\
+	if ((func) != 0) {	\
+		THROWSDLERR;	\
+		exit (1);	\
+	}	\
+}
+
+#define SDLERRNULL(func)	{	\
+	if ((func) == NULL) {	\
+		THROWSDLERR;	\
+		exit (1);	\
+	}	\
+}
+
+
 typedef uint_fast32_t Word;
 
 typedef float Float;
@@ -33,9 +51,17 @@ typedef struct _Triangle {
 	TAngle A, B, C;
 } Triangle;
 
+typedef struct _Coord {
+	int x, y;
+} Coord;
+
 typedef struct _TriangleCoord {
-	Point A, B, C;
+	Coord A, B, C;
 } TriangleCoord;
+
+struct _AttachTo {
+	Coord l [9];
+} *AttachTo;
 
 SDL_Renderer *Renderer = NULL;
 SDL_Window *Window = NULL;
@@ -46,14 +72,42 @@ SDL_Event Event;
 int MouseX, MouseY;
 Point Leg [9] = { 0 };
 
-/*void SolveTriangle_ABC (Triangle *t) {
-	// simplify (solve (a^2 = b^2 + c^2 - 2*b*c*cos (aa), aa)) -> (pi+2*asin((a^2-b^2-c^2)/(2*b*c)))/2
-	t->A = (M_PI + 2.0 * ASIN ((POW (t->a, 2) - POW (t->b, 2) - POW (t->c, 2)) / (2.0 * t->a * t->c))) / 2.0;
-	// simplify (solve ((a / sin (aa)) = (b / sin (ab)), ab)) -> asin(b*sin(A)/a)
-	t->B = ASIN (t->b * SIN (t->A) / t->a);
-	// simplify (solve (A + B + C = 180, C)) -> 180 - A - B
-	t->C = 180.0 - (t->A + t->B);
-}*/
+
+void GenAttachTable (void) {
+	
+	SDL_PixelFormat *fmt;
+	SDLERRNULL	(fmt = SDL_AllocFormat (SDL_BYTESPERPIXEL (8)));
+	
+	SDL_Surface *img;
+	SDLERRNULL	(img = SDL_ConvertSurface (BackgroundSurface, fmt, 0));
+	
+	SDL_Rect v;
+	SDL_RenderGetViewport (Renderer, &v);
+	
+	AttachTo = malloc (sizeof (AttachTo [0]) * v->w * v->h);
+	
+	SDLERRNZ	(SDL_LockSurface (img));
+	
+	for (int px = 0; px != v->w; px ++) {
+		for (int py = 0; py != v->h; py ++) {
+			for (unsigned short leg = 0; leg != 8; leg ++) {
+				int x, y;
+				if (leg > 4)
+					x = px - 64;
+				else
+					x = px + 64;
+				y = py + ((py % 5) * 16);
+				
+				// do things or whatever
+			}
+		}
+	}
+	
+	SDL_UnlockSurface (img);
+	SDL_FreeSurface (img);
+	SDL_FreeFormat (fmt);
+}
+
 void SolveTriangle_ABC (Triangle *t) {
 	t->A = ACOS ((POW (t->b,2) + POW (t->c,2) - POW (t->a,2)) / (2 * t->b * t->c));
 	t->B = ACOS ((POW (t->a,2) + POW (t->c,2) - POW (t->b,2)) / (2 * t->a * t->c));
@@ -80,16 +134,17 @@ void DrawTriangle (const TriangleCoord *c, const Point *a) {
 	p [0].x = c->A.x + a->x; p [0].y = c->A.y + a->y;
 	p [1].x = c->B.x + a->x; p [1].y = c->B.y + a->y;
 	p [2].x = c->C.x + a->x; p [2].y = c->C.y + a->y;
-	SDL_RenderDrawLines (Renderer, p, 3);
+	SDLERRNZ	(SDL_RenderDrawLines (Renderer, p, 3));
 }
 bool LegThings (int, int, unsigned short);
 bool ReLeg (int x, int y, unsigned short leg) {
-	if (leg >= 4)
+	/*if (leg >= 4)
 		Leg [leg].x = x + 50;
 	else
 		Leg [leg].x = x - 50;
-	Leg [leg].y = y + (leg % 5) * 16;
-	return LegThings (x, y, leg);
+	Leg [leg].y = y + (leg % 5) * 16;*/
+	
+	return false; //LegThings (x, y, leg);
 }
 
 bool LegThings (int x, int y, unsigned short leg) {
@@ -116,12 +171,12 @@ bool LegThings (int x, int y, unsigned short leg) {
 	TriangleCoord coord;
 	GetTriangleCoord (&C, &test, &coord, leg < 4 ? -1 : 1);
 	
-	for (unsigned short i = 0; i != 8; i ++) {
+	/*for (unsigned short i = 0; i != 8; i ++) {
 		if (i == leg)
 			continue;
 		if (Leg [i].x == Leg [leg].x && Leg [i].y == Leg [leg].y)
 			return ReLeg (x, y, leg);
-	}
+	}*/
 	DrawTriangle (&coord, &A);
 	return false;
 }
@@ -133,11 +188,11 @@ void DoThings (void) {
 	px -= (px - ((float) MouseX)) / 10;
 	py -= (py - ((float) MouseY)) / 10;
 	
-	SDL_SetRenderDrawColor (Renderer, 0,0,0, 0);
-	SDL_RenderClear (Renderer);
-	//SDL_RenderCopy (Renderer, Background, NULL, NULL);
+	//SDLERRNZ (SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
+	SDLERRNZ	(SDL_RenderClear (Renderer));
+	SDLERRNZ	(SDL_RenderCopy (Renderer, BackgroundTexture, NULL, NULL));
 	
-	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
+	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0));
 	for (unsigned short i = 0; i != 8; i ++)
 		if (LegThings (px, py, i))
 			break;
@@ -155,16 +210,25 @@ void WaitFrame (void) {
 }
 
 int main (void) {
-	SDL_Init (SDL_INIT_VIDEO);
+	SDLERRNZ	(SDL_Init (SDL_INIT_VIDEO));
 	SDL_CreateWindowAndRenderer (
 		640, 480,
 		0,
 		&Window, &Renderer
 	);
 	
-	SDL_RenderClear (Renderer);
+	SDLERRNULL	(Window);
+	SDLERRNULL	(Renderer);
+	
+	BackgroundSurface = SDL_LoadBMP ("bkg.bmp");
+	SDLERRNULL	(BackgroundSurface);
+	
+	BackgroundTexture = SDL_CreateTextureFromSurface (Renderer, BackgroundSurface);
+	SDLERRNULL	(BackgroundTexture);
+	
+	SDLERRNZ	(SDL_RenderClear (Renderer));
 	SDL_RenderPresent (Renderer);
-	SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0);
+	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0));
 	
 	while (1) {
 		while (SDL_PollEvent (&Event)) {
