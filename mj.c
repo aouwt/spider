@@ -224,14 +224,11 @@ void DoThings (void) {
 	
 	SDLERRNZ (SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
 	SDLERRNZ	(SDL_RenderClear (Renderer));
-	//SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
 	SDLERRNZ	(SDL_RenderCopy (Renderer, BackgroundTexture, NULL, NULL));
-	//SDL_BlitSurface (AttachSurface, NULL, WindowSurface, NULL);
 	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255,255,255, 0));
 	for (short i = 0; i != 8; i ++)
 		if (LegThings (px, py, i))
 			break;
-	//SDL_UpdateWindowSurface (Window);
 	SDL_RenderPresent (Renderer);
 }
 
