@@ -231,7 +231,7 @@ bool LegThings (int x, int y, short leg) {
 	test.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
 	
 	if (test.b >= test.a + test.c)
-		return ReLeg (x, y, leg);
+		test.b = test.a + test.c;
 	
 	SolveTriangle_ABC (&test);
 	
