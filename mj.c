@@ -145,7 +145,7 @@ bool ReLeg (int px, int py, short leg) {
 		return true;
 	
 	// do things or whatever
-	int sz_max = LEGSZ * 2;
+	int sz_max = LEGSZ * 2 * 2;
 	const unsigned int max_dist = 2 * pow (LEGSZ * 2, 2);
 	unsigned int closest = -1;
 	Coord closestat;
