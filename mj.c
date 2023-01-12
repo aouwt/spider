@@ -61,11 +61,11 @@ typedef struct _TriangleCoord {
 
 struct _AttachTo {
 	Coord l [9];
-} *AttachTo;
+} *AttachTo = NULL;
 
 SDL_Renderer *Renderer = NULL;
 SDL_Window *Window = NULL;
-SDL_Surface *BackgroundSurface = NULL;
+SDL_Surface *BackgroundSurface = NULL, *AttachSurface = NULL, *WindowSurface = NULL;
 SDL_Texture *BackgroundTexture = NULL;
 SDL_Event Event;
 
@@ -73,80 +73,23 @@ int MouseX, MouseY;
 SDL_Rect Viewport;
 Coord Leg [9] = { 0 };
 
+bool *AttachTable = NULL;
 
 void GenAttachTable (void) {
+	AttachTable = malloc (sizeof (AttachTable [0]) * Viewport.w * Viewport.h + 1);
+	SDLERRNULL	(AttachSurface = SDL_ConvertSurfaceFormat (BackgroundSurface, SDL_PIXELFORMAT_RGB565, 0));
 	
-	SDL_PixelFormat *fmt;
-	SDLERRNULL	(fmt = SDL_AllocFormat (SDL_PIXELFORMAT_RGB332));
-	
-	SDL_Surface *img;
-	SDLERRNULL	(img = SDL_ConvertSurface (BackgroundSurface, fmt, 0));
-	
-	AttachTo = malloc (sizeof (AttachTo [0]) * (Viewport.w+1) * (Viewport.h+1) + 1);
-	
-	SDLERRNZ	(SDL_LockSurface (img));
-	
-	#define pix(x,y)	((x) * Viewport.w + (y))
-	#define check	{\
-		if (ox >= 0 && ox < Viewport.w && oy >= 0 && oy < Viewport.h) {\
-			if (*((uint8_t *) img->pixels + pix (ox, oy)) != 0) {\
-				unsigned int dist = (ox * ox) + (oy * oy);\
-				if (dist < closest) {\
-					closest = dist;\
-					closestat.x = ox;\
-					closestat.y = oy;\
-				}\
-			}\
-		}\
-	}
-	
-	for (int px = 0; px != Viewport.w; px ++) {
-		for (int py = 0; py != Viewport.h; py ++) {
-			for (unsigned short leg = 0; leg != 8; leg ++) {
-				int x, y;
-				if (leg > 4)
-					x = px - 64;
-				else
-					x = px + 64;
-				y = py + ((py % 5) * 16);
-				
-				if (x < 0 || y < 0 || x > Viewport.w || y > Viewport.h)
-					continue;
-				
-				// do things or whatever
-				int sz_max = LEGSZ * 2 * 2;
-				const unsigned int max_dist = pow (LEGSZ, 2);
-				unsigned int closest = -1;
-				Coord closestat;
-				
-				signed short dir = 1;
-				int ox = 0;
-				int oy = 0;
-				for (int sz = 1; sz != sz_max; sz ++) {
-					while (2 * ox * dir < sz) {
-						check;
-						ox += dir;
-					}
-					while (2 * oy * dir < sz) {
-						check;
-						oy += dir;
-					}
-					dir *= -1;
-				}
-				
-				if (closest > max_dist)
-					closestat.x = closestat.y = -1;
-				
-				AttachTo [pix (x, y)].l [leg] = closestat;
-			}
+	SDL_LockSurface (AttachSurface);
+	for (int y = 0; y != Viewport.h; y ++) {
+		for (int x = 0; x != Viewport.w; x ++) {
+			AttachTable [y * Viewport.w + x] = *(
+				(uint8_t *) AttachSurface->pixels +
+				y * AttachSurface->pitch +
+				x * AttachSurface->format->BytesPerPixel
+			) != 0;
 		}
 	}
-	#undef pix
-	#undef check
-	
-	SDL_UnlockSurface (img);
-	SDL_FreeSurface (img);
-	SDL_FreeFormat (fmt);
+	SDL_UnlockSurface (AttachSurface);
 }
 
 void SolveTriangle_ABC (Triangle *t) {
@@ -178,20 +121,67 @@ void DrawTriangle (const TriangleCoord *c, const Coord *a) {
 	SDLERRNZ	(SDL_RenderDrawLines (Renderer, p, 3));
 }
 
-bool ReLeg (int x, int y, short leg) {
-	/*if (leg >= 4)
-		Leg [leg].x = x + 50;
+bool ReLeg (int px, int py, short leg) {
+	#define check	{\
+		if (ox >= 0 && ox <= Viewport.w && oy >= 0 && oy <= Viewport.h) {\
+			if (AttachTable [oy * Viewport.w + ox]) {\
+				unsigned int dist = pow (ox - x, 2) + pow (oy - y, 2);\
+				if (dist < closest) {\
+					closest = dist;\
+					closestat.x = ox;\
+					closestat.y = oy;\
+				}\
+			}\
+		}\
+	}
+	int x, y;
+	if (leg < 4)
+		x = px - LEGSZ;
 	else
-		Leg [leg].x = x - 50;
-	Leg [leg].y = y + (leg % 5) * 16;*/
+		x = px + LEGSZ;
+	y = py + ((py % 4) * 16);
 	
-	Leg [leg] = AttachTo [x * Viewport.w + y].l [leg];
+	if (x < 0 || y < 0 || x > Viewport.w || y > Viewport.h)
+		return true;
 	
-	return false; //LegThings (x, y, leg);
+	// do things or whatever
+	int sz_max = LEGSZ * 2;
+	const unsigned int max_dist = 2 * pow (LEGSZ * 2, 2);
+	unsigned int closest = -1;
+	Coord closestat;
+	
+	signed short dir = 1;
+	int ox = x;
+	int oy = y;
+	SDL_LockSurface (AttachSurface);
+	for (int sz = 1; sz != sz_max; sz ++) {
+		const int m = dir * 2;
+		while (m * ox < sz) {
+			check;
+			ox += dir;
+		}
+		while (m * oy < sz) {
+			check;
+			oy += dir;
+		}
+		dir = -1 * dir;
+	}
+	SDL_UnlockSurface (AttachSurface);
+	
+	if (closest > max_dist) {
+		closestat.x = x;
+		closestat.y = y;
+	} else {
+		puts ("yay");
+	}
+	
+	Leg [leg] = closestat;
+	#undef check
+	
+	return true;
 }
 
 bool LegThings (int x, int y, short leg) {
-
 	Coord A = Leg [leg];
 	
 	Coord C;
@@ -229,17 +219,19 @@ void DoThings (void) {
 	static float px = 0;
 	static float py = 0;
 	
-	px -= (px - ((float) MouseX)) / 10;
-	py -= (py - ((float) MouseY)) / 10;
+	px -= (px - ((float) MouseX)) / 10.0;
+	py -= (py - ((float) MouseY)) / 10.0;
 	
-	//SDLERRNZ (SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
+	SDLERRNZ (SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
 	SDLERRNZ	(SDL_RenderClear (Renderer));
+	//SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
 	SDLERRNZ	(SDL_RenderCopy (Renderer, BackgroundTexture, NULL, NULL));
-	
-	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0));
+	//SDL_BlitSurface (AttachSurface, NULL, WindowSurface, NULL);
+	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255,255,255, 0));
 	for (short i = 0; i != 8; i ++)
 		if (LegThings (px, py, i))
 			break;
+	//SDL_UpdateWindowSurface (Window);
 	SDL_RenderPresent (Renderer);
 }
 
@@ -265,6 +257,7 @@ int main (void) {
 	SDLERRNULL	(Renderer);
 	
 	SDL_RenderGetViewport (Renderer, &Viewport);
+	WindowSurface = SDL_GetWindowSurface (Window);
 	
 	{
 		SDL_Surface *bkg = SDL_LoadBMP ("bkg.bmp");
@@ -284,8 +277,8 @@ int main (void) {
 	}
 	GenAttachTable ();
 	
-	BackgroundTexture = SDL_CreateTextureFromSurface (Renderer, BackgroundSurface);
-	SDLERRNULL	(BackgroundTexture);
+	SDLERRNULL	(BackgroundTexture = SDL_CreateTextureFromSurface (Renderer, BackgroundSurface));
+	//SDLERRNULL	(AttachTexture = SDL_CreateTextureFromSurface (Renderer, AttachSurface));
 	
 	SDLERRNZ	(SDL_RenderClear (Renderer));
 	SDL_RenderPresent (Renderer);
