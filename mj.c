@@ -59,19 +59,19 @@ typedef struct _TriangleCoord {
 	Coord A, B, C;
 } TriangleCoord;
 
-struct _AttachTo {
-	Coord l [9];
-} *AttachTo = NULL;
 
 SDL_Renderer *Renderer = NULL;
 SDL_Window *Window = NULL;
 SDL_Surface *BackgroundSurface = NULL, *AttachSurface = NULL, *WindowSurface = NULL;
-SDL_Texture *BackgroundTexture = NULL;
+SDL_Texture *BackgroundTexture = NULL, *CircleTexture = NULL;
 SDL_Event Event;
 
 int MouseX, MouseY;
 SDL_Rect Viewport;
-Coord Leg [9] = { 0 };
+struct _Leg {
+	Coord a;
+	bool f;
+} Leg [9] = { 0 };
 
 bool *AttachTable = NULL;
 
@@ -79,7 +79,7 @@ void GenAttachTable (void) {
 	AttachTable = malloc (sizeof (AttachTable [0]) * Viewport.w * Viewport.h + 1);
 	SDLERRNULL	(AttachSurface = SDL_ConvertSurfaceFormat (BackgroundSurface, SDL_PIXELFORMAT_RGB565, 0));
 	
-	SDL_LockSurface (AttachSurface);
+	SDLERRNZ	(SDL_LockSurface (AttachSurface));
 	for (int y = 0; y != Viewport.h; y ++) {
 		for (int x = 0; x != Viewport.w; x ++) {
 			AttachTable [y * Viewport.w + x] = *(
@@ -90,6 +90,37 @@ void GenAttachTable (void) {
 		}
 	}
 	SDL_UnlockSurface (AttachSurface);
+}
+
+SDL_Texture *GenCircle (int radius, int res) {
+	SDL_Surface *surface;
+	SDL_Renderer *renderer;
+	SDL_Texture *out;
+	
+	SDLERRNULL	(surface = SDL_CreateRGBSurfaceWithFormat (0, radius*2, radius*2, 8, SDL_PIXELFORMAT_ARGB32));
+	SDLERRNULL	(renderer = SDL_CreateSoftwareRenderer (surface));
+	
+	SDLERRNZ	(SDL_SetRenderDrawColor (renderer, 0,0,0, 0));
+	SDL_RenderClear (renderer);
+	
+	SDL_Point *l = malloc (sizeof (SDL_Point) * (res + 1));
+	Float step = (2*M_PI)/res;
+	for (int i = 0; i != res + 1; i ++) {
+		l [i].x = COS (i * step) * radius + radius;
+		l [i].y = SIN (i * step) * radius + radius;
+	}
+	
+	SDLERRNZ	(SDL_SetRenderDrawColor (renderer, 255,255,255, 255));
+	SDLERRNZ	(SDL_RenderDrawLines (renderer, l, res+1));
+	free (l);
+	
+	SDL_RenderPresent (renderer);
+	
+	SDLERRNULL	(out = SDL_CreateTextureFromSurface (Renderer, surface));
+	SDL_DestroyRenderer (renderer);
+	SDL_FreeSurface (surface);
+	
+	return out;
 }
 
 void SolveTriangle_ABC (Triangle *t) {
@@ -123,66 +154,72 @@ void DrawTriangle (const TriangleCoord *c, const Coord *a) {
 
 bool ReLeg (int px, int py, short leg) {
 	#define check	{\
-		if (ox >= 0 && ox <= Viewport.w && oy >= 0 && oy <= Viewport.h) {\
-			if (AttachTable [oy * Viewport.w + ox]) {\
-				unsigned int dist = pow (ox - x, 2) + pow (oy - y, 2);\
+		if ((ox+x) >= 0 && (ox+x) <= Viewport.w && (oy+y) >= 0 && (oy+y) <= Viewport.h) {\
+			if (AttachTable [(oy+y) * Viewport.w + (ox+x)]) {\
+				unsigned int dist = pow (ox, 2) + pow (oy, 2);\
 				if (dist < closest) {\
 					closest = dist;\
-					closestat.x = ox;\
-					closestat.y = oy;\
+					closestat.x = ox + x;\
+					closestat.y = oy + y;\
 				}\
 			}\
 		}\
 	}
+	const int ofsx = (leg % 4) * (LEGSZ/16) + LEGSZ*1.5;
+	const int ofsy = (leg % 4) * (LEGSZ/4);
 	int x, y;
 	if (leg < 4)
-		x = px - LEGSZ;
+		x = px - ofsx;
 	else
-		x = px + LEGSZ;
-	y = py + ((py % 4) * 16);
+		x = px + ofsx;
+	y = py + ofsy;
 	
 	if (x < 0 || y < 0 || x > Viewport.w || y > Viewport.h)
 		return true;
 	
 	// do things or whatever
-	int sz_max = LEGSZ * 2 * 2;
+	const int sz_max = LEGSZ * 2 * 2;
 	const unsigned int max_dist = 2 * pow (LEGSZ * 2, 2);
 	unsigned int closest = -1;
 	Coord closestat;
 	
 	signed short dir = 1;
-	int ox = x;
-	int oy = y;
-	SDL_LockSurface (AttachSurface);
+	int ox = 0;
+	int oy = 0;
 	for (int sz = 1; sz != sz_max; sz ++) {
-		const int m = dir * 2;
-		while (m * ox < sz) {
+		while (2 * dir * ox < sz) {
 			check;
 			ox += dir;
 		}
-		while (m * oy < sz) {
+		while (2 * dir * oy < sz) {
 			check;
 			oy += dir;
 		}
 		dir = -1 * dir;
 	}
-	SDL_UnlockSurface (AttachSurface);
 	
 	if (closest > max_dist) {
-		closestat.x = x;
-		closestat.y = y;
-	} else {
-		puts ("yay");
+		Leg [leg].a.x = leg < 4 ? ofsx : -ofsx;
+		Leg [leg].a.y = ofsy;
+		Leg [leg].f = true;
+		return false;
 	}
 	
-	Leg [leg] = closestat;
+	Leg [leg].f = false;
+	Leg [leg].a = closestat;
 	#undef check
 	
 	return true;
 }
 
 bool LegThings (int x, int y, short leg) {
-	Coord A = Leg [leg];
+	Coord A;
+	if (Leg [leg].f) {
+		A.x = x - Leg [leg].a.x;
+		A.y = y - Leg [leg].a.y;
+	} else {
+		A = Leg [leg].a;
+	}
 	
 	Coord C;
 	C.x = x - A.x;
@@ -211,6 +248,8 @@ bool LegThings (int x, int y, short leg) {
 			return ReLeg (x, y, leg);
 	}*/
 	DrawTriangle (&coord, &A);
+	if (Leg [leg].f)
+		return ReLeg (x, y, leg);
 	return false;
 }
 
@@ -222,13 +261,20 @@ void DoThings (void) {
 	px -= (px - ((float) MouseX)) / 10.0;
 	py -= (py - ((float) MouseY)) / 10.0;
 	
-	SDLERRNZ (SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
+	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 0,0,0, 0));
 	SDLERRNZ	(SDL_RenderClear (Renderer));
 	SDLERRNZ	(SDL_RenderCopy (Renderer, BackgroundTexture, NULL, NULL));
 	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255,255,255, 0));
 	for (short i = 0; i != 8; i ++)
 		if (LegThings (px, py, i))
 			break;
+	
+	SDL_Rect r;
+	r.x = px - LEGSZ/2;
+	r.y = py - LEGSZ/2;
+	r.w = LEGSZ;
+	r.h = LEGSZ;
+	SDLERRNZ	(SDL_RenderCopy (Renderer, CircleTexture, NULL, &r));
 	SDL_RenderPresent (Renderer);
 }
 
@@ -273,6 +319,7 @@ int main (void) {
 		SDL_FreeSurface (bkg);
 	}
 	GenAttachTable ();
+	CircleTexture = GenCircle (LEGSZ/2, 16);
 	
 	SDLERRNULL	(BackgroundTexture = SDL_CreateTextureFromSurface (Renderer, BackgroundSurface));
 	//SDLERRNULL	(AttachTexture = SDL_CreateTextureFromSurface (Renderer, AttachSurface));
