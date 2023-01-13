@@ -9,6 +9,8 @@
 #define ASIN asinl
 #define ACOS acosl
 #define ATAN atanl
+
+#define ATAN2 atan2l
 #define POW powl
 #define SQRT sqrtl
 #define ABS fabsl
@@ -199,27 +201,27 @@ bool ReLeg (int px, int py, short leg) {
 	}
 	
 	if (closest > max_dist) {
-		Leg [leg].a.x = leg < 4 ? ofsx : -ofsx;
-		Leg [leg].a.y = ofsy;
-		Leg [leg].f = true;
+	//	Leg [leg].a.x = leg < 4 ? ofsx : -ofsx;
+	//	Leg [leg].a.y = ofsy;
+	//	Leg [leg].f = true;
 		return false;
 	}
 	
-	Leg [leg].f = false;
+	//Leg [leg].f = false;
 	Leg [leg].a = closestat;
 	#undef check
 	
 	return true;
 }
 
-bool LegThings (int x, int y, short leg) {
+void LegThings (int x, int y, short leg) {
 	Coord A;
-	if (Leg [leg].f) {
-		A.x = x - Leg [leg].a.x;
-		A.y = y - Leg [leg].a.y;
-	} else {
+	//if (Leg [leg].f) {
+	//	A.x = x - Leg [leg].a.x;
+	//	A.y = y - Leg [leg].a.y;
+	//} else {
 		A = Leg [leg].a;
-	}
+	//}
 	
 	Coord C;
 	C.x = x - A.x;
@@ -230,13 +232,18 @@ bool LegThings (int x, int y, short leg) {
 	test.c = 50;
 	test.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
 	
-	if (test.b >= test.a + test.c)
+	if (test.b >= test.a + test.c) {
 		test.b = test.a + test.c;
+		Float angle = ATAN2 (C.x, C.y);
+		C.x = COS (angle) * (test.a + test.b) - A.x;
+		C.y = SIN (angle) * (test.a + test.b) - A.y;
+		ReLeg (x, y, leg);
+	}
 	
 	SolveTriangle_ABC (&test);
 	
 	if (isnan (test.A) || isnan (test.B) || isnan (test.C))
-		return false;
+		return;
 	
 	TriangleCoord coord;
 	GetTriangleCoord (&C, &test, &coord, leg < 4 ? -1 : 1);
@@ -248,9 +255,8 @@ bool LegThings (int x, int y, short leg) {
 			return ReLeg (x, y, leg);
 	}*/
 	DrawTriangle (&coord, &A);
-	if (Leg [leg].f)
-		return ReLeg (x, y, leg);
-	return false;
+	//if (Leg [leg].f)
+	//	return ReLeg (x, y, leg);
 }
 
 
@@ -266,8 +272,7 @@ void DoThings (void) {
 	SDLERRNZ	(SDL_RenderCopy (Renderer, BackgroundTexture, NULL, NULL));
 	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255,255,255, 0));
 	for (short i = 0; i != 8; i ++)
-		if (LegThings (px, py, i))
-			break;
+		LegThings (px, py, i);
 	
 	SDL_Rect r;
 	r.x = px - LEGSZ/2;
