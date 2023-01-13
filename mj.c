@@ -232,11 +232,13 @@ void LegThings (int x, int y, short leg) {
 	test.c = 50;
 	test.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
 	
-	if (test.b >= test.a + test.c) {
-		test.b = test.a + test.c;
-		Float angle = ATAN2 (C.x, C.y);
-		C.x = COS (angle) * (test.a + test.b) - A.x;
-		C.y = SIN (angle) * (test.a + test.b) - A.y;
+	if (test.b > test.a + test.c) {
+		Float angle = ATAN2 (C.y, C.x);
+		C.x = COS (angle) * (test.a + test.c)/2;// - A.x;
+		C.y = SIN (angle) * (test.a + test.c)/2;// - A.y;
+		A.x = x;
+		A.y = y;
+		test.b = (test.a + test.c)/2;
 		ReLeg (x, y, leg);
 	}
 	
