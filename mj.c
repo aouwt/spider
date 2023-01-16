@@ -72,8 +72,10 @@ int MouseX, MouseY;
 SDL_Rect Viewport;
 struct _Leg {
 	Coord a;
+	Triangle last;
+	Coord last_a;
 	bool f;
-} Leg [9] = { 0 };
+} Leg [9];
 
 bool *AttachTable = NULL;
 
@@ -215,50 +217,47 @@ bool ReLeg (int px, int py, short leg) {
 }
 
 void LegThings (int x, int y, short leg) {
-	Coord A;
-	//if (Leg [leg].f) {
-	//	A.x = x - Leg [leg].a.x;
-	//	A.y = y - Leg [leg].a.y;
-	//} else {
-		A = Leg [leg].a;
-	//}
+	bool ul = false;
+	Coord A = Leg [leg].a;
 	
 	Coord C;
 	C.x = x - A.x;
 	C.y = y - A.y;
 	
-	Triangle test;
-	test.a = 50;
-	test.c = 50;
-	test.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
+	Triangle t;
+	t.a = 50;
+	t.c = 50;
+	t.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
 	
-	if (test.b > test.a + test.c) {
-		Float angle = ATAN2 (C.y, C.x);
-		C.x = COS (angle) * (test.a + test.c)/2;// - A.x;
-		C.y = SIN (angle) * (test.a + test.c)/2;// - A.y;
-		A.x = x;
-		A.y = y;
-		test.b = (test.a + test.c)/2;
+	if (t.b > t.a + t.c)
+		ul = true;
+	
+	SolveTriangle_ABC (&t);
+	
+	if (isnan (t.A) || isnan (t.B) || isnan (t.C))
+		ul = true;
+	
+	if (ul) {
 		ReLeg (x, y, leg);
+		t = Leg [leg].last;
+		A = Leg [leg].last_a;
+		C.x = x - A.x;
+		C.y = y - A.y;
+	} else {
+		Leg [leg].last = t;
+		Leg [leg].last_a = A;
 	}
 	
-	SolveTriangle_ABC (&test);
-	
-	if (isnan (test.A) || isnan (test.B) || isnan (test.C))
-		return;
-	
 	TriangleCoord coord;
-	GetTriangleCoord (&C, &test, &coord, leg < 4 ? -1 : 1);
+	GetTriangleCoord (&C, &t, &coord, leg < 4 ? -1 : 1);
 	
-	/*for (unsigned short i = 0; i != 8; i ++) {
+	for (unsigned short i = 0; i != 8; i ++) {
 		if (i == leg)
 			continue;
-		if (Leg [i].x == Leg [leg].x && Leg [i].y == Leg [leg].y)
-			return ReLeg (x, y, leg);
-	}*/
+		if (Leg [i].a.x == Leg [leg].a.x && Leg [i].a.y == Leg [leg].a.y)
+			ReLeg (x, y, leg);
+	}
 	DrawTriangle (&coord, &A);
-	//if (Leg [leg].f)
-	//	return ReLeg (x, y, leg);
 }
 
 
