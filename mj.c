@@ -243,6 +243,11 @@ void LegThings (int x, int y, short leg) {
 		A = Leg [leg].last_a;
 		C.x = x - A.x;
 		C.y = y - A.y;
+		
+		SolveTriangle_ABC (&t);
+		
+		if (isnan (t.A) || isnan (t.B) || isnan (t.C))
+			return;
 	} else {
 		Leg [leg].last = t;
 		Leg [leg].last_a = A;
