@@ -17,7 +17,7 @@
 
 
 #define FRAME_TIME (1000 / 60)
-#define LEGSZ	32
+#define LEGSZ	64
 
 #define THROWSDLERR	fprintf (stderr, "SDL error at %u: %s\n", (unsigned int) __LINE__, SDL_GetError ())
 
@@ -80,7 +80,11 @@ struct _Leg {
 bool *AttachTable = NULL;
 
 void GenAttachTable (void) {
+	if (AttachTable != NULL)
+		free (AttachTable);
 	AttachTable = malloc (sizeof (AttachTable [0]) * Viewport.w * Viewport.h + 1);
+	if (AttachSurface != NULL)
+		SDL_FreeSurface (AttachSurface);
 	SDLERRNULL	(AttachSurface = SDL_ConvertSurfaceFormat (BackgroundSurface, SDL_PIXELFORMAT_RGB565, 0));
 	
 	SDLERRNZ	(SDL_LockSurface (AttachSurface));
@@ -225,8 +229,8 @@ void LegThings (int x, int y, short leg) {
 	C.y = y - A.y;
 	
 	Triangle t;
-	t.a = 50;
-	t.c = 50;
+	t.a = LEGSZ;
+	t.c = LEGSZ;
 	t.b = SQRT (ABS (POW (C.x, 2)) + ABS (POW (C.y, 2)));
 	
 	if (t.b > t.a + t.c)
