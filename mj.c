@@ -3,17 +3,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define SIN sinl
-#define COS cosl
-#define TAN tanl
-#define ASIN asinl
-#define ACOS acosl
-#define ATAN atanl
+#define SIN sinf
+#define COS cosf
+#define TAN tanf
+#define ASIN asinf
+#define ACOS acosf
+#define ATAN atanf
 
-#define ATAN2 atan2l
-#define POW powl
-#define SQRT sqrtl
-#define ABS fabsl
+#define ATAN2 atan2f
+#define POW powf
+#define SQRT sqrtf
+#define ABS fabsf
 
 
 #define FRAME_TIME (1000 / 60)
@@ -83,21 +83,23 @@ void GenAttachTable (void) {
 	if (AttachTable != NULL)
 		free (AttachTable);
 	AttachTable = malloc (sizeof (AttachTable [0]) * Viewport.w * Viewport.h + 1);
-	if (AttachSurface != NULL)
-		SDL_FreeSurface (AttachSurface);
-	SDLERRNULL	(AttachSurface = SDL_ConvertSurfaceFormat (BackgroundSurface, SDL_PIXELFORMAT_RGB565, 0));
 	
-	SDLERRNZ	(SDL_LockSurface (AttachSurface));
+	SDL_Surface *surface;
+	SDLERRNULL	(surface = SDL_ConvertSurfaceFormat (BackgroundSurface, SDL_PIXELFORMAT_RGB565, 0));
+	
+	SDLERRNZ	(SDL_LockSurface (surface));
 	for (int y = 0; y != Viewport.h; y ++) {
 		for (int x = 0; x != Viewport.w; x ++) {
 			AttachTable [y * Viewport.w + x] = *(
-				(uint8_t *) AttachSurface->pixels +
-				y * AttachSurface->pitch +
-				x * AttachSurface->format->BytesPerPixel
+				(uint8_t *) surface->pixels +
+				y * surface->pitch +
+				x * surface->format->BytesPerPixel
 			) != 0;
 		}
 	}
-	SDL_UnlockSurface (AttachSurface);
+	SDL_UnlockSurface (surface);
+	
+	SDL_FreeSurface (surface);
 }
 
 SDL_Texture *GenCircle (int radius, int res) {
@@ -303,24 +305,14 @@ void WaitFrame (void) {
 	last = target;
 }
 
-int main (void) {
-	SDLERRNZ	(SDL_Init (SDL_INIT_VIDEO));
-	SDL_CreateWindowAndRenderer (
-		640, 480,
-		0,
-		&Window, &Renderer
-	);
-	
-	SDLERRNULL	(Window);
-	SDLERRNULL	(Renderer);
-	
+
+void ResetWindow (int w, int h) {
 	SDL_RenderGetViewport (Renderer, &Viewport);
 	WindowSurface = SDL_GetWindowSurface (Window);
 	
+	if (BackgroundSurface != NULL)
+		SDL_FreeSurface (BackgroundSurface);
 	{
-		SDL_Surface *bkg = SDL_LoadBMP ("bkg.bmp");
-		SDLERRNULL	(bkg);
-		
 		Uint32 fmt = SDL_GetWindowPixelFormat (Window);
 		BackgroundSurface = SDL_CreateRGBSurfaceWithFormat (
 			0,
@@ -329,28 +321,49 @@ int main (void) {
 		);
 		SDLERRNULL	(BackgroundSurface);
 		
-		SDLERRNZ	(SDL_BlitScaled (bkg, NULL, BackgroundSurface, NULL));
-		
-		SDL_FreeSurface (bkg);
+		SDLERRNZ	(SDL_BlitScaled (BackgroundImage, NULL, BackgroundSurface, NULL));
 	}
 	GenAttachTable ();
-	CircleTexture = GenCircle (LEGSZ/2, 16);
 	
+	if (BackgroundTexture != NULL)
+		SDL_DestroyTexture (BackgroundTexture);
 	SDLERRNULL	(BackgroundTexture = SDL_CreateTextureFromSurface (Renderer, BackgroundSurface));
-	//SDLERRNULL	(AttachTexture = SDL_CreateTextureFromSurface (Renderer, AttachSurface));
+}
+
+int main (void) {
+	SDLERRNZ	(SDL_Init (SDL_INIT_VIDEO));
+	SDL_CreateWindowAndRenderer (
+		640, 480,
+		SDL_WINDOW_RESIZABLE,
+		&Window, &Renderer
+	);
 	
+	SDLERRNULL	(Window);
+	SDLERRNULL	(Renderer);
+	
+	SDLERRNULL (BackgroundImage = SDL_LoadBMP ("bkg.bmp"));
+	CircleTexture = GenCircle (LEGSZ/2, 8);
+	
+	ResetWindow (640, 480);
 	SDLERRNZ	(SDL_RenderClear (Renderer));
 	SDL_RenderPresent (Renderer);
 	SDLERRNZ	(SDL_SetRenderDrawColor (Renderer, 255, 255, 255, 0));
-	
 	while (1) {
 		while (SDL_PollEvent (&Event)) {
 			switch (Event.type) {
 				case SDL_QUIT:
 					return 0;
+				break;
+				
 				case SDL_MOUSEMOTION:
 					MouseX = Event.motion.x;
 					MouseY = Event.motion.y;
+				break;
+				
+				case SDL_WINDOWEVENT:
+					if (Event.window.event == SDL_WINDOWEVENT_RESIZED)
+						ResetWindow (Event.window.event.data1, Event.window.event.data2);
+				break;
 			}
 		}
 		DoThings ();
